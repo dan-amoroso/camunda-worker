@@ -139,6 +139,8 @@ pub mod worker {
     use rust_camunda_client::models::VariableValueDto;
     use std::collections::HashMap;
 
+    use std::error::Error;
+
     pub fn wait(interval_seconds: u64) {
         thread::sleep(time::Duration::from_secs(interval_seconds));
     }
@@ -149,7 +151,7 @@ pub mod worker {
         camunda_engine: &Engine,
         handler: F,
     ) where
-        F: Fn(Task) -> Result<HashMap<String, VariableValueDto>, String>,
+        F: Fn(Task) -> Result<HashMap<String, VariableValueDto>, Box<dyn Error>>,
     {
         loop {
             let maybe_task = &camunda_engine.lock_task(topic_string, worker_id, 1);
