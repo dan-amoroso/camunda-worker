@@ -111,21 +111,23 @@ pub mod config {
     }
 
     impl Config {
-        pub fn new() -> Self {
+        pub fn new(
+            camunda_base_url: String,
+            camunda_username: String,
+            camunda_password: String,
+            topic: String,
+            worker_id: String,
+        ) -> Self {
             return Self {
                 wait_interval: 60,
-                base_path: "".to_string(),
-                camunda_username: "demo".to_string(),
-                camunda_password: "demo".to_string(),
-                topic: "".to_string(),
+                base_path: camunda_base_url,
+                camunda_username: camunda_username,
+                camunda_password: camunda_password,
+                topic: topic,
                 lock_duration: Some(60i64),
-                worker_id: "rust-worker-1".to_string(),
+                worker_id: worker_id,
             };
         }
-    }
-
-    pub fn get_config() -> Config {
-        return Config::new();
     }
 }
 
@@ -154,40 +156,60 @@ pub mod worker {
         F: Fn(Task) -> Result<HashMap<String, VariableValueDto>, Box<dyn Error>>,
     {
         loop {
+            println!("fetching task...");
+
             let maybe_task = &camunda_engine.lock_task(topic_string, worker_id, 1);
 
-            let task = if let Ok(tasks) = maybe_task {
-                if tasks.len() == 0 {
-                    continue;
-                }
-                println!("no tasks... skipping");
-                &tasks[0]
-            } else {
-                wait(10);
-                continue;
-            };
-            let result = handler(task.to_owned());
+            match maybe_task {
+                Ok(tasks) => {
+                    if tasks.len() == 0 {
+                        wait(10);
+                        continue;
+                    }
 
-            match result {
-                Ok(variables) => {
-                    let complete_call = camunda_engine.complete_task(&task, &worker_id, variables);
-                    if let Ok(_result) = complete_call {
-                        println!("task successfully completed");
-                    } else if let Err(err) = complete_call {
-                        println!(
-                            "failed to complete a task because of failed engine call {:#?}",
-                            err
-                        );
-                    };
+                    let task = &tasks[0];
+                    let result = handler(task.to_owned());
+
+                    match result {
+                        Ok(variables) => {
+                            let complete_call =
+                                camunda_engine.complete_task(&task, &worker_id, variables);
+                            if let Ok(_result) = complete_call {
+                                println!("task successfully completed");
+                            } else if let Err(err) = complete_call {
+                                println!(
+                                    "failed to complete a task because of failed engine call {:#?}",
+                                    err
+                                );
+                            };
+                        }
+                        Err(_message) => {
+                            if let Ok(_result) = camunda_engine.release_task(&task) {
+                                println!("releasing task {}", _message);
+                            } else {
+                                println!("releasing task failed : {}", _message);
+                            };
+                        }
+                    }
                 }
-                Err(_message) => {
-                    if let Ok(_result) = camunda_engine.release_task(&task) {
-                        println!("releasing task {}", _message);
-                    } else {
-                        println!("releasing task failed : {}", _message);
-                    };
+                Err(error) => {
+                    println!("Error: {:#?}", error);
                 }
             }
+
+            //let task = if let Ok(tasks) = maybe_task {
+            //    if tasks.len() == 0 {
+            //        continue;
+            //    }
+            //    println!("no tasks... skipping");
+            //    &tasks[0]
+            //} else if let Err(error) = maybe_task {
+            //    println!("failed to lock task");
+            //    wait(10);
+            //    continue;
+            //} else {
+            //    println!("unknown error");
+            //};
             wait(10);
         }
     }
@@ -198,6 +220,7 @@ pub mod utils {
     use rust_camunda_client::apis::configuration::{BasicAuth, Configuration};
     use rust_camunda_client::models::VariableValueDto;
     use std::collections::HashMap;
+    use std::env;
 
     pub fn variable_value(val: serde_json::Value) -> VariableValueDto {
         return VariableValueDto {
@@ -224,6 +247,10 @@ pub mod utils {
             oauth_access_token: None,
             api_key: None,
         };
+    }
+
+    pub fn get_env_var(key: &str) -> String {
+        return env::var(key).expect(&format!("{} env variable is not present", key));
     }
 }
 
