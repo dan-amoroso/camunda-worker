@@ -87,6 +87,7 @@ pub mod engine {
                     Some(complete_external_task_dto),
                 )
         }
+
         pub fn release_task(&self, task: &Task) -> Result<(), Error> {
             return self
                 .api_client
@@ -99,7 +100,7 @@ pub mod engine {
 }
 
 pub mod config {
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct Config {
         pub wait_interval: u64,
         pub base_path: String,
@@ -136,82 +137,71 @@ pub mod worker {
     use crate::engine::Engine;
     use crate::engine::Task;
 
+    use std::collections::HashMap;
+    use std::error::Error;
     use std::{thread, time};
 
     use rust_camunda_client::models::VariableValueDto;
-    use std::collections::HashMap;
 
-    use std::error::Error;
+    type VariablesMap = HashMap<String, VariableValueDto>;
 
     pub fn wait(interval_seconds: u64) {
         thread::sleep(time::Duration::from_secs(interval_seconds));
     }
 
-    pub fn run_topic_handler<F>(
-        topic_string: &str,
-        worker_id: &str,
-        camunda_engine: &Engine,
-        handler: F,
-    ) where
-        F: Fn(Task) -> Result<HashMap<String, VariableValueDto>, Box<dyn Error>>,
+    pub fn run_topic_handler<F>(topic_str: &str, worker_id: &str, engine: &Engine, handler: F)
+    where
+        F: Fn(Task) -> Result<VariablesMap, Box<dyn Error>>,
     {
         loop {
             println!("fetching task...");
 
-            let maybe_task = &camunda_engine.lock_task(topic_string, worker_id, 1);
-
-            match maybe_task {
+            match &engine.lock_task(topic_str, worker_id, 1) {
                 Ok(tasks) => {
                     if tasks.len() == 0 {
                         wait(10);
                         continue;
                     }
-
                     let task = &tasks[0];
                     let result = handler(task.to_owned());
 
                     match result {
                         Ok(variables) => {
-                            let complete_call =
-                                camunda_engine.complete_task(&task, &worker_id, variables);
-                            if let Ok(_result) = complete_call {
-                                println!("task successfully completed");
-                            } else if let Err(err) = complete_call {
-                                println!(
-                                    "failed to complete a task because of failed engine call {:#?}",
-                                    err
-                                );
-                            };
+                            complete_task(&engine, &task, &worker_id, variables);
                         }
-                        Err(_message) => {
-                            if let Ok(_result) = camunda_engine.release_task(&task) {
-                                println!("releasing task {}", _message);
-                            } else {
-                                println!("releasing task failed : {}", _message);
-                            };
+                        Err(topic_handler_error) => {
+                            handle_topic_handler_failure(&engine, &task, topic_handler_error)
                         }
                     }
                 }
-                Err(error) => {
-                    println!("Error: {:#?}", error);
-                }
+                Err(lock_task_error) => handle_lock_task_error(lock_task_error),
             }
-
-            //let task = if let Ok(tasks) = maybe_task {
-            //    if tasks.len() == 0 {
-            //        continue;
-            //    }
-            //    println!("no tasks... skipping");
-            //    &tasks[0]
-            //} else if let Err(error) = maybe_task {
-            //    println!("failed to lock task");
-            //    wait(10);
-            //    continue;
-            //} else {
-            //    println!("unknown error");
-            //};
             wait(10);
         }
+    }
+
+    fn complete_task(engine: &Engine, task: &Task, worker_id: &str, vars: VariablesMap) {
+        let complete_call = engine.complete_task(&task, &worker_id, vars);
+        if let Ok(_result) = complete_call {
+            println!("task successfully completed");
+        } else if let Err(err) = complete_call {
+            println!(
+                "failed to complete a task because of failed engine call {:#?}",
+                err
+            );
+        };
+    }
+
+    fn handle_topic_handler_failure(engine: &Engine, task: &Task, message: Box<dyn Error>) {
+        if let Ok(_result) = engine.release_task(task) {
+            println!("releasing task {}", message);
+        } else {
+            println!("releasing task failed : {}", message);
+        };
+    }
+
+    fn handle_lock_task_error(error: &rust_camunda_client::apis::Error) {
+        println!("Error: {:#?}", error);
     }
 }
 
