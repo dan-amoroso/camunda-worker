@@ -1,18 +1,18 @@
 pub mod engine {
-    extern crate rust_camunda_client;
+    extern crate camunda_client;
 
     use super::config::Config;
     use super::utils::new_configuration;
 
     use std::collections::HashMap;
 
-    use rust_camunda_client::apis::client::APIClient;
-    use rust_camunda_client::apis::Error;
-    use rust_camunda_client::models::CompleteExternalTaskDto;
-    use rust_camunda_client::models::FetchExternalTaskTopicDto;
-    use rust_camunda_client::models::FetchExternalTasksDto;
-    use rust_camunda_client::models::LockedExternalTaskDto;
-    use rust_camunda_client::models::VariableValueDto;
+    use camunda_client::apis::client::APIClient;
+    use camunda_client::apis::Error;
+    use camunda_client::models::CompleteExternalTaskDto;
+    use camunda_client::models::FetchExternalTaskTopicDto;
+    use camunda_client::models::FetchExternalTasksDto;
+    use camunda_client::models::LockedExternalTaskDto;
+    use camunda_client::models::VariableValueDto;
 
     pub struct Engine {
         config: Config,
@@ -141,7 +141,7 @@ pub mod worker {
     use std::error::Error;
     use std::{thread, time};
 
-    use rust_camunda_client::models::VariableValueDto;
+    use camunda_client::models::VariableValueDto;
 
     type VariablesMap = HashMap<String, VariableValueDto>;
 
@@ -200,15 +200,15 @@ pub mod worker {
         };
     }
 
-    fn handle_lock_task_error(error: &rust_camunda_client::apis::Error) {
+    fn handle_lock_task_error(error: &camunda_client::apis::Error) {
         println!("Error: {:#?}", error);
     }
 }
 
 pub mod utils {
 
-    use rust_camunda_client::apis::configuration::{BasicAuth, Configuration};
-    use rust_camunda_client::models::VariableValueDto;
+    use camunda_client::apis::configuration::{BasicAuth, Configuration};
+    use camunda_client::models::VariableValueDto;
     use std::collections::HashMap;
     use std::env;
 
