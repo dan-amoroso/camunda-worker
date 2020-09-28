@@ -1,13 +1,18 @@
 [package]
-name = "rust_camunda_worker"
+name = "camunda-worker"
+description = "helper library to simplify camunda worker development in Rust"
 version = "0.1.0"
 authors = ["Danilo Amoroso <dan.j.amoroso@gmail.com>"]
 edition = "2018"
+license = "Apache-2.0"
+repository = "https://github.com/Dansvidania/camunda-worker.git"
+homepage = "https://github.com/Dansvidania/camunda-worker"
+documentation = "https://github.com/Dansvidania/camunda-worker"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust_camunda_client = { path = "../rust-camunda-client"}
+camunda-client = "0.1.0"
 serde = "^1.0"
 serde_derive = "^1.0"
 serde_json = "^1.0"
