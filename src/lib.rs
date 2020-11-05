@@ -136,6 +136,7 @@ pub mod worker {
 
     use crate::engine::Engine;
     use crate::engine::Task;
+    use log::{error, info, warn};
 
     use std::collections::HashMap;
     use std::error::Error;
@@ -154,7 +155,7 @@ pub mod worker {
         F: Fn(Task) -> Result<VariablesMap, Box<dyn Error>>,
     {
         loop {
-            println!("fetching task...");
+            info!("Fetching task...");
 
             match &engine.lock_task(topic_str, worker_id, 1) {
                 Ok(tasks) => {
@@ -183,10 +184,10 @@ pub mod worker {
     fn complete_task(engine: &Engine, task: &Task, worker_id: &str, vars: VariablesMap) {
         let complete_call = engine.complete_task(&task, &worker_id, vars);
         if let Ok(_result) = complete_call {
-            println!("task successfully completed");
+            info!("Task successfully completed.");
         } else if let Err(err) = complete_call {
-            println!(
-                "failed to complete a task because of failed engine call {:#?}",
+            error!(
+                "Failed to complete a task because of failed engine call: {:#?}",
                 err
             );
         };
@@ -194,14 +195,14 @@ pub mod worker {
 
     fn handle_topic_handler_failure(engine: &Engine, task: &Task, message: Box<dyn Error>) {
         if let Ok(_result) = engine.release_task(task) {
-            println!("releasing task {}", message);
+            warn!("Releasing task: {:#?}", message);
         } else {
-            println!("releasing task failed : {}", message);
+            error!("Failed to release task: {:#?}", message);
         };
     }
 
     fn handle_lock_task_error(error: &camunda_client::apis::Error) {
-        println!("Error: {:#?}", error);
+        error!("Failed to lock task: {:#?}", error);
     }
 }
 
