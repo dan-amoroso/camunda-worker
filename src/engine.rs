@@ -22,7 +22,7 @@ fn fetch_and_lock_dto(
     lock_duration: Option<i64>,
     max_tasks: i32,
 ) -> FetchExternalTasksDto {
-    return FetchExternalTasksDto {
+    FetchExternalTasksDto {
         worker_id: worker_id.to_owned(),
         max_tasks: Some(max_tasks),
         use_priority: None,
@@ -31,7 +31,7 @@ fn fetch_and_lock_dto(
             topic.to_owned(),
             lock_duration,
         )]),
-    };
+    }
 }
 
 impl Engine {
@@ -43,10 +43,10 @@ impl Engine {
                 Some(config.camunda_password.to_owned()),
             ),
         );
-        return Engine {
+        Engine {
             config: config.clone(),
             api_client: APIClient::new(configuration),
-        };
+        }
     }
 
     pub fn lock_task(
@@ -55,15 +55,14 @@ impl Engine {
         worker_id: &str,
         max_tasks: i32,
     ) -> Result<Vec<Task>, Error> {
-        return self
-            .api_client
+        self.api_client
             .external_task_api()
             .fetch_and_lock(Some(fetch_and_lock_dto(
                 topic,
                 worker_id,
                 self.config.lock_duration,
                 max_tasks,
-            )));
+            )))
     }
 
     pub fn complete_task(
@@ -86,10 +85,9 @@ impl Engine {
     }
 
     pub fn release_task(&self, task: &Task) -> Result<(), Error> {
-        return self
-            .api_client
+        self.api_client
             .external_task_api()
-            .unlock(&task.id.as_ref().unwrap());
+            .unlock(&task.id.as_ref().unwrap())
     }
 }
 

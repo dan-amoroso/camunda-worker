@@ -23,7 +23,7 @@ where
 
         match &engine.lock_task(topic_str, worker_id, 1) {
             Ok(tasks) => {
-                if tasks.len() == 0 {
+                if tasks.is_empty() {
                     wait(10);
                     continue;
                 }
