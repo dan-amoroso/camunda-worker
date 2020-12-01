@@ -17,14 +17,14 @@ impl Config {
         topic: String,
         worker_id: String,
     ) -> Self {
-        return Self {
+        Self {
             wait_interval: 60,
             base_path: camunda_base_url,
-            camunda_username: camunda_username,
-            camunda_password: camunda_password,
-            topic: topic,
+            camunda_username,
+            camunda_password,
+            topic,
             lock_duration: Some(60i64),
-            worker_id: worker_id,
-        };
+            worker_id,
+        }
     }
 }
