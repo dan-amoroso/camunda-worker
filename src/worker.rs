@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::engine::Engine;
 use crate::engine::Task;
 use log::{error, info, warn};
@@ -8,31 +9,56 @@ use std::{thread, time};
 
 use camunda_client::models::VariableValueDto;
 
-type VariablesMap = HashMap<String, VariableValueDto>;
+pub type VariablesMap = HashMap<String, VariableValueDto>;
+pub type HandlerResult = Result<VariablesMap, Box<dyn Error>>;
 
 pub fn wait(interval_seconds: u64) {
     thread::sleep(time::Duration::from_secs(interval_seconds));
 }
 
-pub fn run_topic_handler<F>(topic_str: &str, worker_id: &str, engine: &Engine, handler: F)
+pub struct Handler<A> {
+    pub topic: String,
+    pub handler_function: A,
+}
+
+pub async fn run_topic_handlers<F>(config: &Config, handlers: Vec<Handler<F>>)
 where
-    F: Fn(Task) -> Result<VariablesMap, Box<dyn Error>>,
+    F: Fn(Task) -> HandlerResult + Send + 'static,
 {
+    let mut task_handles = Vec::new();
+
+    for handler in handlers {
+        let config = config.clone();
+        let task_handle = tokio::spawn(async move { run_topic_handler(&config, handler) });
+        task_handles.push(task_handle);
+    }
+
+    for task_handle in task_handles {
+        task_handle.await.unwrap();
+    }
+}
+
+pub fn run_topic_handler<F>(config: &Config, handler: Handler<F>)
+where
+    F: Fn(Task) -> HandlerResult,
+{
+    let engine = Engine::new(config);
+
     loop {
         info!("Fetching task...");
 
-        match &engine.lock_task(topic_str, worker_id, 1) {
+        match &engine.lock_task(&handler.topic, &config.worker_id, 1) {
             Ok(tasks) => {
                 if tasks.is_empty() {
-                    wait(10);
+                    wait(config.wait_interval);
                     continue;
                 }
                 let task = &tasks[0];
-                let result = handler(task.to_owned());
+                let result = (handler.handler_function)(task.to_owned());
 
                 match result {
                     Ok(variables) => {
-                        complete_task(&engine, &task, &worker_id, variables);
+                        complete_task(&engine, &task, &config.worker_id, variables);
                     }
                     Err(topic_handler_error) => {
                         handle_topic_handler_failure(&engine, &task, topic_handler_error)
@@ -41,7 +67,7 @@ where
             }
             Err(lock_task_error) => handle_lock_task_error(lock_task_error),
         }
-        wait(10);
+        wait(config.wait_interval);
     }
 }
 
