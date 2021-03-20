@@ -4,7 +4,6 @@ pub struct Config {
     pub base_path: String,
     pub camunda_username: String,
     pub camunda_password: String,
-    pub topics: Vec<TopicConfig>,
     pub lock_duration: Option<i64>,
     pub worker_id: String,
 }
@@ -14,7 +13,6 @@ impl Config {
         camunda_base_url: String,
         camunda_username: String,
         camunda_password: String,
-        topics: Vec<TopicConfig>,
         worker_id: String,
     ) -> Self {
         Self {
@@ -22,7 +20,6 @@ impl Config {
             base_path: camunda_base_url,
             camunda_username,
             camunda_password,
-            topics,
             lock_duration: Some(60i64),
             worker_id,
         }

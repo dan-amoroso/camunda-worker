@@ -19,7 +19,6 @@ fn main() {
         "http://localhost:8080/engine-rest".to_owned(),
         "demo".to_owned(),
         "demo".to_owned(),
-        vec!(), // expects a vector of topic definitions, it is deprecated
         "worker-id-007".to_owned(),
         );
 
